@@ -1,0 +1,3 @@
+rootProject.name='HookActivityPlugin'
+include ':app'
+include ':plugin'
