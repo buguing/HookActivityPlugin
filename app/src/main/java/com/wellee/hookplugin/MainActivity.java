@@ -28,7 +28,7 @@ public class MainActivity extends AppCompatActivity {
         if (!pluginParentFile.exists()) {
             pluginParentFile.mkdirs();
         }
-        if (!BaseApplication.getInstance().isHookSuccess()) {
+        if (BaseApplication.hookAMS && !BaseApplication.getInstance().isHookSuccess()) {
             HookActivityUtils hookUtils = new HookActivityUtils(this, StubActivity.class);
             try {
                 hookUtils.hookStartActivity();

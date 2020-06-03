@@ -28,7 +28,7 @@ public class HookActivityUtils {
     }
 
     public HookActivityUtils(Context context, Class<?> proxyClass) {
-        this.mContext = context.getApplicationContext();
+        this.mContext = context;
         this.mProxyClass = proxyClass;
     }
 

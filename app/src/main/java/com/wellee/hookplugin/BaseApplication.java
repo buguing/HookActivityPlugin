@@ -13,6 +13,11 @@ public class BaseApplication extends Application {
     private AssetManager mPluginAssets;
     private Resources.Theme mTheme;
     private boolean hookSuccess;
+    /**
+     * 开关配置
+     * hookAMS方式还是hookInstrumentation方式
+     */
+    public static boolean hookAMS = false;
 
     public static BaseApplication getInstance() {
         return mInstance;
@@ -32,20 +37,26 @@ public class BaseApplication extends Application {
         mInstance = this;
         int reflection = Reflection.unseal();
         Log.d("BaseApplication", reflection == 0 ? "hide api exempt success" : "hide api exempt failure");
-    }
 
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        HookActivityUtils hookUtils = new HookActivityUtils(this, StubActivity.class);
-        try {
-            hookUtils.hookStartActivity();
-            hookUtils.hookLauncherActivity();
-            hookSuccess = true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            hookSuccess = false;
-            // Android10 在application中hook startActivity拿到mInstance为null 所以在Activity中判断是否需hook
+        if (hookAMS) {
+            HookActivityUtils hookUtils = new HookActivityUtils(base, StubActivity.class);
+            try {
+                hookUtils.hookStartActivity();
+                hookUtils.hookLauncherActivity();
+                hookSuccess = true;
+            } catch (Exception e) {
+                e.printStackTrace();
+                hookSuccess = false;
+                // Android10 在application中hook startActivity拿到mInstance为null 所以在Activity中判断是否需hook
+            }
+        } else {
+            // hook instrumentation
+            HookInstrumentationUtils utils = new HookInstrumentationUtils(base, StubActivity.class);
+            try {
+                utils.hookInstrumentation();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
