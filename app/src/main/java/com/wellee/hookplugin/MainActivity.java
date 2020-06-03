@@ -64,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     boolean installSuccess;
+
     private void installPlugin(File plugin) {
         try {
             PluginManager.install(this, plugin.getAbsolutePath());
@@ -97,34 +98,19 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean testBlackListApi() {
         boolean success = true;
-        if (Build.VERSION.SDK_INT < 29) return true;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return true;
         try {
-            //1.
-            //package android.app;
-            //ActivityManager
             Class<?> activityManagerClazz = Class.forName("android.app.ActivityManager");
-
-            //2.
-            //Disable hidden API checks for the newly started instrumentation.
-            // @hide
-            //public static final int INSTR_FLAG_DISABLE_HIDDEN_API_CHECKS = 1 << 0;
             Field field = activityManagerClazz.getField("INSTR_FLAG_DISABLE_HIDDEN_API_CHECKS");
-            //3.get value
             Object object = field.get(null);
             if (object == null) {
                 return false;
             }
             int check_flag = (int) object;
             Log.d(TAG, "get blacklist api :" + check_flag);
-        } catch (ClassNotFoundException e) {
+        } catch (NoSuchFieldException | ClassNotFoundException | IllegalAccessException e) {
             e.printStackTrace();
             success = false;
-        } catch (NoSuchFieldException e) {
-            e.printStackTrace();
-            success = false;
-        } catch (IllegalAccessException e) {
-            success = false;
-            e.printStackTrace();
         }
         return success;
     }

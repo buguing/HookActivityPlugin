@@ -32,19 +32,16 @@ public class HookActivityUtils {
         this.mProxyClass = proxyClass;
     }
 
-    //设备系统版本是不是大于等于29(Android 10)
     private static boolean ifSdkOverIncluding29() {
         int SDK_INT = Build.VERSION.SDK_INT;
         return SDK_INT >= 29;
     }
 
-    //设备系统版本是不是大于等于26(Android 8.0 Oreo)
     private static boolean ifSdkOverIncluding26() {
         int SDK_INT = Build.VERSION.SDK_INT;
         return SDK_INT >= 26;
     }
 
-    //设备系统版本是不是大于等于28(Android 9.0 Pie)
     private static boolean ifSdkOverIncluding28() {
         int SDK_INT = Build.VERSION.SDK_INT;
         return SDK_INT >= 28;
@@ -53,6 +50,7 @@ public class HookActivityUtils {
     public void hookStartActivity() throws Exception {
         Object defaultSingleton;
         if (ifSdkOverIncluding29()) {
+            // 29获取的是ActivityTaskManager
             defaultSingleton = getIActivityTaskManagerSingleton();
         } else if (ifSdkOverIncluding26()) {
             // 26，27，28的ams获取方式是通过ActivityManager.getService()
@@ -183,10 +181,8 @@ public class HookActivityUtils {
 
         @Override
         public boolean handleMessage(Message msg) {
-            //android.app.ActivityThread$H.EXECUTE_TRANSACTION = 159
-            //android 9.0反射,Accessing hidden field Landroid/app/ActivityThread$H;->EXECUTE_TRANSACTION:I (dark greylist, reflection)
-            //android9.0 深灰名单（dark greylist）则debug版本在会弹出dialog提示框，在release版本会有Toast提示，均提示为"Detected problems with API compatibility"
-            if (msg.what == 159) {//直接写死,不反射了,否则在android9.0的设备上运行会弹出使用了反射的dialog提示框
+            // android.app.ActivityThread$H.EXECUTE_TRANSACTION = 159
+            if (msg.what == 159) {
                 handleActivity(msg);
             }
             return false;
@@ -195,43 +191,31 @@ public class HookActivityUtils {
         private void handleActivity(Message msg) {
 
             try {
-                //ClientTransaction-->ClientTransaction中的List<ClientTransactionItem> mActivityCallbacks-->集合中的第一个值LaunchActivityItem-->LaunchActivityItem的mIntent
-                // 这里简单起见,直接取出TargetActivity;
-                //final ClientTransaction transaction = (ClientTransaction) msg.obj;
-                //1.获取ClientTransaction对象
                 Object clientTransactionObj = msg.obj;
-                if (clientTransactionObj == null) return;
-                //2.获取ClientTransaction类中属性mActivityCallbacks的Field
-                //private List<ClientTransactionItem> mActivityCallbacks;
                 Field mActivityCallbacksField = clientTransactionObj.getClass().getDeclaredField("mActivityCallbacks");
-                //3.禁止Java访问检查
                 mActivityCallbacksField.setAccessible(true);
-                //4.获取ClientTransaction类中mActivityCallbacks属性的值,既List<ClientTransactionItem>
                 List<?> mActivityCallbacks = (List<?>) mActivityCallbacksField.get(clientTransactionObj);
-                if (mActivityCallbacks == null || mActivityCallbacks.size() <= 0) return;
-                if (mActivityCallbacks.get(0) == null) return;
-                //5.ClientTransactionItem的Class对象
-                //package android.app.servertransaction;
-                //public class LaunchActivityItem extends ClientTransactionItem
-                Class<?> launchActivityItemClazz = Class.forName("android.app.servertransaction.LaunchActivityItem");
-                //6.判断集合中第一个元素的值是LaunchActivityItem类型的
-                if (!launchActivityItemClazz.isInstance(mActivityCallbacks.get(0))) return;
-                //7.获取LaunchActivityItem的实例
-                // public class LaunchActivityItem extends ClientTransactionItem
+                if (mActivityCallbacks == null || mActivityCallbacks.size() <= 0) {
+                    return;
+                }
                 Object launchActivityItem = mActivityCallbacks.get(0);
-                //8.ClientTransactionItem的mIntent属性的mIntent的Field
-                //private Intent mIntent;
-                Field mIntentField = launchActivityItemClazz.getDeclaredField("mIntent");
+                if (launchActivityItem == null) {
+                    return;
+                }
+                Class<?> launchActivityItemClass = Class.forName("android.app.servertransaction.LaunchActivityItem");
+                if (!launchActivityItemClass.isInstance(launchActivityItem)) {
+                    return;
+                }
+                Field mIntentField = launchActivityItemClass.getDeclaredField("mIntent");
                 mIntentField.setAccessible(true);
-                //10.获取mIntent属性的值,既桩Intent(安全的Intent)
-                //从LaunchActivityItem中获取属性mIntent的值
                 Intent safeIntent = (Intent) mIntentField.get(launchActivityItem);
-                if (safeIntent == null) return;
-                //11.获取原始的Intent
+                if (safeIntent == null) {
+                    return;
+                }
                 Intent originIntent = safeIntent.getParcelableExtra(EXTRA_ORIGINAL_INTENT);
-                //12.需要判断originIntent != null
-                if (originIntent == null) return;
-                //13.将原始的Intent,赋值给clientTransactionItem的mIntent属性
+                if (originIntent == null) {
+                    return;
+                }
                 mIntentField.set(launchActivityItem, originIntent);
             } catch (Exception e) {
                 e.printStackTrace();
